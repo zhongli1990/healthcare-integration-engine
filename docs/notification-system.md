@@ -145,6 +145,35 @@ npm test
 ```
 
 ## Best Practices
+
+### When to Use Notifications
+- **Do** use notifications for:
+  - Important system events (e.g., "Backup completed")
+  - User actions that require attention (e.g., "Document saved")
+  - Time-sensitive information
+  - Errors that need user action
+
+- **Don't** use notifications for:
+  - Confirmation of every user action
+  - Information that's already visible on screen
+  - Non-critical system messages
+
+### Notification Guidelines
+1. **Be Clear and Concise**
+   - Keep titles under 50 characters
+   - Keep messages under 120 characters
+   - Use action buttons for complex flows
+
+2. **Use Appropriate Types**
+   - `success`: For completed actions
+   - `error`: For problems that need attention
+   - `warning`: For potential issues
+   - `info`: For general information
+
+3. **Performance**
+   - Limit the number of notifications to 50
+   - Old notifications are automatically archived
+   - Use action buttons instead of multiple notifications for related events
 1. Use appropriate notification types
 2. Keep messages clear and concise
 3. Include actions when additional steps are needed
@@ -169,8 +198,49 @@ npm test
 ## Version History
 
 ### v0.1.3 (2025-06-22)
+#### Features
 - Initial implementation of notification system
-- Added notification context and hooks
-- Created notification menu and page
-- Added sample notifications
+- Added notification context with full CRUD operations
+- Created responsive notification menu with unread indicators
+- Built dedicated notifications page with filtering
+- Added local storage persistence
 - Integrated with existing theme system
+- Added comprehensive documentation
+
+#### Components Added
+- `NotificationContext`: Manages notification state and persistence
+- `NotificationMenu`: Dropdown menu for recent notifications
+- `Notifications` page: Full notifications interface
+- `notificationService`: Helper for demo and testing
+
+#### Usage Examples
+```typescript
+// Basic usage
+const { notify } = useNotify();
+notify('Title', 'Message', 'info');
+
+// With action
+notify('Action Required', 'Please review', 'warning', {
+  label: 'Review',
+  onClick: () => navigate('/items/123')
+});
+
+// Convenience methods
+const { success, error } = useNotify();
+success('Success', 'Operation completed');
+error('Error', 'Something went wrong');
+```
+
+#### Implementation Notes
+- Notifications persist across page refreshes using localStorage
+- Unread count is automatically tracked and displayed
+- Supports dark/light theme
+- Fully responsive design
+- Accessible with proper ARIA labels
+
+### v0.1.2 (2025-06-21)
+- Initial project setup
+- Basic layout and routing
+- Authentication system
+- Theme support
+- Profile management
