@@ -1,11 +1,11 @@
 import React from 'react';
-import { styled, AppBar, Toolbar, IconButton, Typography, Box, Badge } from '@mui/material';
+import { styled, AppBar, Toolbar, IconButton, Typography, Box, Badge, Tooltip } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useThemeContext } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import ProfileMenu from './ProfileMenu';
+import NotificationMenu from '../notifications/NotificationMenu';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -72,21 +72,19 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
             )}
           </IconButton>
           
-          <IconButton color="inherit" size="large" sx={{ ml: 1 }}>
-            <Badge badgeContent={4} color="secondary">
-              <NotificationsIcon />
-            </Badge>
-          </IconButton>
+          <NotificationMenu />
           
-          <IconButton 
-            color="inherit" 
-            size="large"
-            onClick={handleSettingsClick}
-            sx={{ ml: 1 }}
-            aria-label="settings"
-          >
-            <SettingsIcon />
-          </IconButton>
+          <Tooltip title="Settings">
+            <IconButton 
+              color="inherit" 
+              size="large"
+              onClick={handleSettingsClick}
+              sx={{ ml: 1 }}
+              aria-label="settings"
+            >
+              <SettingsIcon />
+            </IconButton>
+          </Tooltip>
           
           <ProfileMenu />
         </Box>

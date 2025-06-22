@@ -3,6 +3,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { NotificationProvider } from './contexts/NotificationContext';
+import { useInitNotifications } from './services/notificationService';
 
 // Layout
 import MainLayout from './components/layout/MainLayout';
@@ -17,6 +19,7 @@ import Logs from './pages/Logs';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
+import Notifications from './pages/Notifications';
 
 // Initialize React Query client
 const queryClient = new QueryClient({
@@ -50,35 +53,47 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 
 // Main App component
+const AppContent: React.FC = () => {
+  // Initialize demo notifications
+  useInitNotifications();
+  
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      
+      {/* Protected Routes */}
+      <Route element={
+        <ProtectedRoute>
+          <MainLayout />
+        </ProtectedRoute>
+      }>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/protocols" element={<Protocols />} />
+        <Route path="/integration" element={<Integration />} />
+        <Route path="/monitoring" element={<Monitoring />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/logs" element={<Logs />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/notifications" element={<Notifications />} />
+      </Route>
+      
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
 const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <Router>
-          <AuthProvider>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              
-              {/* Protected Routes */}
-              <Route element={
-                <ProtectedRoute>
-                  <MainLayout />
-                </ProtectedRoute>
-              }>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/protocols" element={<Protocols />} />
-                <Route path="/integration" element={<Integration />} />
-                <Route path="/monitoring" element={<Monitoring />} />
-                <Route path="/services" element={<Services />} />
-                <Route path="/logs" element={<Logs />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/profile" element={<Profile />} />
-              </Route>
-              
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </AuthProvider>
-        </Router>
+        <NotificationProvider>
+          <Router>
+            <AuthProvider>
+              <AppContent />
+            </AuthProvider>
+          </Router>
+        </NotificationProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
