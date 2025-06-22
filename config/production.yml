@@ -1,0 +1,291 @@
+# Healthcare Integration Engine - Production Configuration
+# This file defines all end-to-end routes and service configurations
+
+# Global configuration
+version: '1.0'
+environment: production
+
+# Shared resources
+shared:
+  # Message broker configuration
+  message_broker:
+    type: kafka  # or 'rabbitmq', 'nats'
+    brokers:
+      - kafka1:9092
+      - kafka2:9092
+    topics:
+      patient_updates: patient-updates
+      lab_results: lab-results
+      imaging_orders: imaging-orders
+      billing_events: billing-events
+    
+  # Database configuration
+  database:
+    main:
+      url: postgresql+asyncpg://user:password@postgres:5432/healthcare_integration
+      pool_size: 20
+      max_overflow: 10
+      timeout: 30s
+    
+  # Cache configuration
+  cache:
+    type: redis
+    url: redis://redis:6379/0
+    ttl: 3600  # 1 hour
+
+# Inbound Services
+inbound_services:
+  # HL7 ADT Inbound (MLLP)
+  hl7_adt_inbound:
+    enabled: true
+    type: inbound
+    description: "HL7 ADT Inbound Service (MLLP)"
+    transport:
+      protocol: mllp
+      host: 0.0.0.0
+      port: 2575
+      tls:
+        enabled: false
+    protocol:
+      type: hl7v2
+      version: 2.5
+      encoding: UTF-8
+      generate_ack: true
+    processing:
+      thread_pool_size: 10
+      max_message_size: 10MB
+      validation:
+        schema: hl7/v2.5/ADT_A01.json
+    routing:
+      default_topic: patient-updates
+      rules:
+        - condition: message.type == 'ADT' and message.event in ['A01', 'A04', 'A08']
+          topic: patient-updates
+          priority: high
+
+  # FHIR REST API
+  fhir_api:
+    enabled: true
+    type: inbound
+    description: "FHIR STU3/R4 REST API"
+    transport:
+      protocol: https
+      host: 0.0.0.0
+      port: 443
+      tls:
+        enabled: true
+        cert_file: /etc/ssl/certs/fhir.crt
+        key_file: /etc/ssl/private/fhir.key
+    protocol:
+      type: fhir
+      version: R4
+      base_path: /fhir
+    rate_limiting:
+      enabled: true
+      requests_per_minute: 1000
+
+# Outbound Services
+outbound_services:
+  # HL7 ORU Outbound (MLLP)
+  hl7_oru_outbound:
+    enabled: true
+    type: outbound
+    description: "HL7 ORU Outbound to Lab System"
+    transport:
+      protocol: mllp
+      host: lab-system.example.com
+      port: 2576
+      tls:
+        enabled: true
+        verify: true
+        ca_file: /etc/ssl/certs/ca-bundle.crt
+    protocol:
+      type: hl7v2
+      version: 2.5
+    retry_policy:
+      max_attempts: 3
+      initial_delay: 1s
+      max_delay: 10s
+      backoff_factor: 2
+
+  # FHIR Server Outbound
+  fhir_server_outbound:
+    enabled: true
+    type: outbound
+    description: "FHIR Server Outbound"
+    transport:
+      protocol: https
+      base_url: https://fhir-server.example.com/fhir
+      timeout: 30s
+    protocol:
+      type: fhir
+      version: R4
+    authentication:
+      type: oauth2
+      token_url: https://auth.example.com/oauth2/token
+      client_id: your-client-id
+      client_secret: your-client-secret
+      scope: system/*.read system/*.write
+
+# Processing Pipelines
+pipelines:
+  # Patient Data Processing
+  patient_data_pipeline:
+    enabled: true
+    description: "Process patient demographic updates"
+    input_topics:
+      - patient-updates
+    steps:
+      - name: validate_message
+        type: validation
+        config:
+          schema: schemas/patient_update.json
+      - name: transform_to_internal
+        type: transformation
+        config:
+          mapping: mappings/hl7_to_internal.json
+      - name: enrich_patient_data
+        type: enrichment
+        config:
+          cache_ttl: 1h
+      - name: route_to_destinations
+        type: routing
+        config:
+          rules:
+            - condition: message.type == 'ADT_A01'
+              destinations:
+                - fhir_server_outbound
+                - cdr_database
+    error_handling:
+      dead_letter_queue: dlq.patient-updates
+      max_retries: 3
+      retry_delay: 1m
+
+# End-to-End Routes
+routes:
+  # HL7 ADT → FHIR Server
+  - name: hl7_adt_to_fhir
+    description: "Route HL7 ADT messages to FHIR server"
+    source: hl7_adt_inbound
+    pipeline: patient_data_pipeline
+    destinations:
+      - fhir_server_outbound
+    monitoring:
+      enabled: true
+      metrics:
+        - messages_received
+        - processing_time
+        - errors
+
+  # Lab Results → EMR
+  - name: lab_results_to_emr
+    description: "Route lab results to EMR system"
+    source: hl7_oru_inbound
+    pipeline: lab_processing_pipeline
+    destinations:
+      - emr_hl7_outbound
+    monitoring:
+      enabled: true
+
+# Monitoring & Observability
+monitoring:
+  metrics:
+    enabled: true
+    exporter: prometheus
+    port: 9090
+    path: /metrics
+  logging:
+    level: INFO
+    format: json
+    file: /var/log/healthcare-integration.json
+  tracing:
+    enabled: true
+    exporter: jaeger
+    endpoint: jaeger:6831
+  health_checks:
+    - name: database
+      type: tcp
+      endpoint: postgres:5432
+      interval: 30s
+    - name: message_broker
+      type: tcp
+      endpoint: kafka:9092
+      interval: 30s
+
+# Security
+security:
+  tls:
+    enabled: true
+    min_version: "TLSv1.2"
+    cipher_suites:
+      - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+  authentication:
+    jwt:
+      issuer: https://auth.example.com
+      audience: healthcare-integration
+      jwks_uri: https://auth.example.com/.well-known/jwks.json
+  authorization:
+    rbac:
+      enabled: true
+      policy_file: /config/rbac_policy.json
+
+# Deployment Configuration
+deployment:
+  replicas: 3
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 1Gi
+  liveness_probe:
+    path: /healthz
+    port: 8080
+    initial_delay_seconds: 30
+    period_seconds: 10
+  readiness_probe:
+    path: /ready
+    port: 8080
+    initial_delay_seconds: 5
+    period_seconds: 5
+
+# Environment Variables (for container orchestration)
+env:
+  - name: LOG_LEVEL
+    value: INFO
+  - name: CONFIG_FILE
+    value: /config/production.yml
+  - name: JAEGER_SERVICE_NAME
+    value: healthcare-integration
+  - name: JAEGER_AGENT_HOST
+    value: jaeger
+  - name: PROMETHEUS_MULTIPROC_DIR
+    value: /tmp/prometheus
+
+# Volume Mounts
+volumes:
+  - name: config
+    mountPath: /config
+    readOnly: true
+  - name: tls
+    mountPath: /etc/ssl/private
+    readOnly: true
+  - name: logs
+    mountPath: /var/log
+
+# Secret Mounts
+secrets:
+  - name: tls-certificates
+    items:
+      - key: tls.crt
+        path: tls.crt
+      - key: tls.key
+        path: tls.key
+  - name: database-credentials
+    items:
+      - key: username
+        path: db-username
+      - key: password
+        path: db-password

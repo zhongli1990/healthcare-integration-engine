@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: healthcare-integration-backend
+    restart: always
+    ports:
+      - "8850:8850"
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/healthcare_integration
+      - REDIS_URL=redis://redis:6379
+      - SENTRY_DSN=${SENTRY_DSN}
+      - HL7_WATCH_DIR=/app/data/hl7/incoming
+      - HL7_PROCESSED_DIR=/app/data/hl7/processed
+      - HL7_ERROR_DIR=/app/data/hl7/errors
+    volumes:
+      - ./backend:/app
+      - hl7_data:/app/data/hl7
+      - ./backend/.env:/app/.env
+    depends_on:
+      - db
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8850/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: healthcare-integration-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8850/api/v1  # For local development
+      # - VITE_API_URL=http://backend:8850/api/v1  # For container-to-container communication
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/dist
+    working_dir: /app
+    networks:
+      - app-network
+    stdin_open: true
+    tty: true
+
+  db:
+    image: postgres:15-alpine
+    container_name: healthcare-integration-db
+    restart: always
+    environment:
+      - POSTGRES_DB=healthcare_integration
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "8852:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: healthcare-integration-redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "8853:6379"
+
+volumes:
+  postgres_data:
+  redis_data:
+  hl7_data:
+
+networks:
+  app-network:
+    driver: bridge

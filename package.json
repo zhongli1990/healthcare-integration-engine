@@ -1,0 +1,15 @@
+{
+  "name": "windsurf-project",
+  "version": "1.0.0",
+  "description": "A high-performance integration engine designed for healthcare organizations, supporting multiple protocols and standards.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc && vite build"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.8.3"
+  }
+}
