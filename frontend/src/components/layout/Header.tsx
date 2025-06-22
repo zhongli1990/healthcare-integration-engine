@@ -1,11 +1,11 @@
 import React from 'react';
-import { styled, AppBar, Toolbar, IconButton, Typography, Box, Avatar } from '@mui/material';
+import { styled, AppBar, Toolbar, IconButton, Typography, Box, Badge } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
-import Brightness4Icon from '@mui/icons-material/Brightness4';
-import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { useThemeContext } from '../../contexts/ThemeContext';
+import { useNavigate } from 'react-router-dom';
+import ProfileMenu from './ProfileMenu';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -23,6 +23,11 @@ const StyledAppBar = styled(AppBar)(({ theme }) => ({
 
 const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
   const { mode, toggleColorMode } = useThemeContext();
+  const navigate = useNavigate();
+  
+  const handleSettingsClick = () => {
+    navigate('/settings');
+  };
   
   return (
     <StyledAppBar position="fixed">
@@ -37,7 +42,19 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
           <MenuIcon />
         </IconButton>
         
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+        <Typography 
+          variant="h6" 
+          noWrap 
+          component="div" 
+          sx={{ 
+            flexGrow: 1,
+            cursor: 'pointer',
+            '&:hover': {
+              opacity: 0.8
+            }
+          }}
+          onClick={() => navigate('/')}
+        >
           Healthcare Integration Engine
         </Typography>
         
@@ -48,17 +65,30 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
             aria-label={mode === 'dark' ? 'switch to light mode' : 'switch to dark mode'}
             sx={{ ml: 1 }}
           >
-            {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+            {mode === 'dark' ? (
+              <Box component="span" sx={{ display: 'flex' }}>☀️</Box>
+            ) : (
+              <Box component="span" sx={{ display: 'flex' }}>🌙</Box>
+            )}
           </IconButton>
-          <IconButton color="inherit" size="large">
-            <NotificationsIcon />
+          
+          <IconButton color="inherit" size="large" sx={{ ml: 1 }}>
+            <Badge badgeContent={4} color="secondary">
+              <NotificationsIcon />
+            </Badge>
           </IconButton>
-          <IconButton color="inherit" size="large">
+          
+          <IconButton 
+            color="inherit" 
+            size="large"
+            onClick={handleSettingsClick}
+            sx={{ ml: 1 }}
+            aria-label="settings"
+          >
             <SettingsIcon />
           </IconButton>
-          <IconButton color="inherit" size="large">
-            <Avatar sx={{ width: 32, height: 32 }}>U</Avatar>
-          </IconButton>
+          
+          <ProfileMenu />
         </Box>
       </Toolbar>
     </StyledAppBar>

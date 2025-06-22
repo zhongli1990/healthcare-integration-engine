@@ -16,6 +16,7 @@ import Services from './pages/Services';
 import Logs from './pages/Logs';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
+import Profile from './pages/Profile';
 
 // Initialize React Query client
 const queryClient = new QueryClient({
@@ -71,6 +72,7 @@ const App: React.FC = () => {
                 <Route path="/services" element={<Services />} />
                 <Route path="/logs" element={<Logs />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/profile" element={<Profile />} />
               </Route>
               
               <Route path="*" element={<Navigate to="/" replace />} />
