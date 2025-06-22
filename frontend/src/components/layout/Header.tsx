@@ -3,6 +3,9 @@ import { styled, AppBar, Toolbar, IconButton, Typography, Box, Avatar } from '@m
 import MenuIcon from '@mui/icons-material/Menu';
 import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
+import { useThemeContext } from '../../contexts/ThemeContext';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -19,6 +22,8 @@ const StyledAppBar = styled(AppBar)(({ theme }) => ({
 }));
 
 const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
+  const { mode, toggleColorMode } = useThemeContext();
+  
   return (
     <StyledAppBar position="fixed">
       <Toolbar>
@@ -37,6 +42,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
         </Typography>
         
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <IconButton 
+            color="inherit" 
+            onClick={toggleColorMode}
+            aria-label={mode === 'dark' ? 'switch to light mode' : 'switch to dark mode'}
+            sx={{ ml: 1 }}
+          >
+            {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
+          </IconButton>
           <IconButton color="inherit" size="large">
             <NotificationsIcon />
           </IconButton>

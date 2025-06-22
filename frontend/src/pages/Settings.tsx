@@ -1,12 +1,13 @@
 import { Box, Typography, Paper, Tabs, Tab, Divider, TextField, Button, FormControlLabel, Switch } from '@mui/material';
 import { useState } from 'react';
 import SaveIcon from '@mui/icons-material/Save';
+import { useThemeContext } from '../contexts/ThemeContext';
 
 const Settings = () => {
   const [tabValue, setTabValue] = useState(0);
+  const { mode, toggleColorMode } = useThemeContext();
   const [settings, setSettings] = useState({
     emailNotifications: true,
-    darkMode: false,
     apiKey: '••••••••••••••••••••••••••••••••',
   });
 
@@ -56,8 +57,8 @@ const Settings = () => {
                 <FormControlLabel
                   control={
                     <Switch
-                      checked={settings.darkMode}
-                      onChange={(e) => handleSettingChange('darkMode', e.target.checked)}
+                      checked={mode === 'dark'}
+                      onChange={toggleColorMode}
                       color="primary"
                     />
                   }
