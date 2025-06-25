@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/dist/vis-network.min.css" rel="stylesheet">
+    <style>
+        #graph {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .card {
+            margin-bottom: 20px;
+        }
+        .nav-tabs {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">IRIS Production Importer</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <ul class="nav nav-tabs" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="import-tab" data-bs-toggle="tab" data-bs-target="#import" type="button" role="tab">Import</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="visualize-tab" data-bs-toggle="tab" data-bs-target="#visualize" type="button" role="tab">Visualize</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="components-tab" data-bs-toggle="tab" data-bs-target="#components" type="button" role="tab">Components</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="mainTabsContent">
+            <!-- Import Tab -->
+            <div class="tab-pane fade show active" id="import" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Import IRIS Production</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="importForm">
+                            <div class="mb-3">
+                                <label for="productionFile" class="form-label">Production File (.cls)</label>
+                                <input class="form-control" type="file" id="productionFile" accept=".cls" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="routingRuleFile" class="form-label">Routing Rule File (.cls)</label>
+                                <input class="form-control" type="file" id="routingRuleFile" accept=".cls" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="neo4jUri" class="form-label">Neo4j URI</label>
+                                <input type="text" class="form-control" id="neo4jUri" value="bolt://neo4j:7687" required>
+                            </div>
+                            <div class="row">
+                                <div class="col">
+                                    <label for="neo4jUser" class="form-label">Username</label>
+                                    <input type="text" class="form-control" id="neo4jUser" value="neo4j" required>
+                                </div>
+                                <div class="col">
+                                    <label for="neo4jPassword" class="form-label">Password</label>
+                                    <input type="password" class="form-control" id="neo4jPassword" value="healthcare123" required>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary mt-3">Import</button>
+                        </form>
+                    </div>
+                </div>
+                <div id="importStatus" class="mt-3"></div>
+            </div>
+
+            <!-- Visualize Tab -->
+            <div class="tab-pane fade" id="visualize" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Production Visualization</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="graph"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Components Tab -->
+            <div class="tab-pane fade" id="components" role="tabpanel">
+                <!-- Components Table -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Components</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Type</th>
+                                        <th>Status</th>
+                                        <th>Properties</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="componentsTableBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center">Loading components...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Relationships Table -->
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Relationships</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Source</th>
+                                        <th>Type</th>
+                                        <th>Target</th>
+                                        <th>Properties</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="relationshipsTableBody">
+                                    <tr>
+                                        <td colspan="4" class="text-center">Loading relationships...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
