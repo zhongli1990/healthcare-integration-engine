@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.test
+    container_name: healthcare-integration-tests
+    environment:
+      - TESTING=true
+      - DATABASE_URL=postgresql://postgres:postgres@test-db:5432/test_healthcare_integration
+      - TEST_DATABASE_URL=postgresql://postgres:postgres@test-db:5432/test_healthcare_integration?options=-c%20search_path%3Dtest_schema
+      - TEST_SCHEMA=test_schema
+      - JWT_SECRET=test-secret
+    depends_on:
+      test-db:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - ./backend/tests:/app/tests
+    networks:
+      - test-network
+
+  test-db:
+    image: postgres:15-alpine
+    container_name: healthcare-integration-test-db
+    environment:
+      - POSTGRES_DB=test_healthcare_integration
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d test_healthcare_integration"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - test-network
+
+volumes:
+  test_postgres_data:
+
+networks:
+  test-network:
+    driver: bridge
