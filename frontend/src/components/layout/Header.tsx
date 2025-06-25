@@ -1,8 +1,11 @@
 import React from 'react';
-import { styled, AppBar, Toolbar, IconButton, Typography, Box, Avatar } from '@mui/material';
+import { styled, AppBar, Toolbar, IconButton, Typography, Box, Badge, Tooltip } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
-import NotificationsIcon from '@mui/icons-material/Notifications';
 import SettingsIcon from '@mui/icons-material/Settings';
+import { useThemeContext } from '../../contexts/ThemeContext';
+import { useNavigate } from 'react-router-dom';
+import ProfileMenu from './ProfileMenu';
+import NotificationMenu from '../notifications/NotificationMenu';
 
 interface HeaderProps {
   onMenuToggle: () => void;
@@ -19,6 +22,13 @@ const StyledAppBar = styled(AppBar)(({ theme }) => ({
 }));
 
 const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
+  const { mode, toggleColorMode } = useThemeContext();
+  const navigate = useNavigate();
+  
+  const handleSettingsClick = () => {
+    navigate('/settings');
+  };
+  
   return (
     <StyledAppBar position="fixed">
       <Toolbar>
@@ -32,20 +42,51 @@ const Header: React.FC<HeaderProps> = ({ onMenuToggle }) => {
           <MenuIcon />
         </IconButton>
         
-        <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+        <Typography 
+          variant="h6" 
+          noWrap 
+          component="div" 
+          sx={{ 
+            flexGrow: 1,
+            cursor: 'pointer',
+            '&:hover': {
+              opacity: 0.8
+            }
+          }}
+          onClick={() => navigate('/')}
+        >
           Healthcare Integration Engine
         </Typography>
         
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton color="inherit" size="large">
-            <NotificationsIcon />
+          <IconButton 
+            color="inherit" 
+            onClick={toggleColorMode}
+            aria-label={mode === 'dark' ? 'switch to light mode' : 'switch to dark mode'}
+            sx={{ ml: 1 }}
+          >
+            {mode === 'dark' ? (
+              <Box component="span" sx={{ display: 'flex' }}>☀️</Box>
+            ) : (
+              <Box component="span" sx={{ display: 'flex' }}>🌙</Box>
+            )}
           </IconButton>
-          <IconButton color="inherit" size="large">
-            <SettingsIcon />
-          </IconButton>
-          <IconButton color="inherit" size="large">
-            <Avatar sx={{ width: 32, height: 32 }}>U</Avatar>
-          </IconButton>
+          
+          <NotificationMenu />
+          
+          <Tooltip title="Settings">
+            <IconButton 
+              color="inherit" 
+              size="large"
+              onClick={handleSettingsClick}
+              sx={{ ml: 1 }}
+              aria-label="settings"
+            >
+              <SettingsIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <ProfileMenu />
         </Box>
       </Toolbar>
     </StyledAppBar>

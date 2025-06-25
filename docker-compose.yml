@@ -11,7 +11,11 @@ services:
       - "8850:8850"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/healthcare_integration
+      - TEST_DATABASE_URL=postgresql://postgres:postgres@db:5432/healthcare_integration?options=-c%20search_path%3Dtest_schema
       - REDIS_URL=redis://redis:6379
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=healthcare123
       - SENTRY_DSN=${SENTRY_DSN}
       - HL7_WATCH_DIR=/app/data/hl7/incoming
       - HL7_PROCESSED_DIR=/app/data/hl7/processed
@@ -21,13 +25,20 @@ services:
       - hl7_data:/app/data/hl7
       - ./backend/.env:/app/.env
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      neo4j:
+        condition: service_healthy
+    networks:
+      - app-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8850/api/v1/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8850/api/v1/health/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
+      retries: 10
+      start_period: 30s
 
   frontend:
     build:
@@ -59,15 +70,19 @@ services:
       - POSTGRES_DB=healthcare_integration
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
+      - POSTGRES_HOST_AUTH_METHOD=trust  # Allow all connections without password for initialization
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/docker/postgres/init-user-db.sh:/docker-entrypoint-initdb.d/init-user-db.sh
     ports:
       - "8852:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d healthcare_integration"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    networks:
+      - app-network
 
   redis:
     image: redis:7-alpine
@@ -78,11 +93,43 @@ services:
       - redis_data:/data
     ports:
       - "8853:6379"
+    networks:
+      - app-network
+
+  neo4j:
+    image: neo4j:5.13.0-community
+    container_name: healthcare-neo4j
+    environment:
+      - NEO4J_AUTH=neo4j/healthcare123
+      - NEO4J_PLUGINS='["apoc"]'
+      - NEO4J_dbms_memory_pagecache_size=512M
+      - NEO4J_server_memory_heap_initial__size=512M
+      - NEO4J_server_memory_heap_max__size=1G
+      - NEO4J_dbms_memory_heap_initial__size=512M
+      - NEO4J_dbms_memory_heap_max__size=1G
+      - NEO4J_dbms_connector_bolt_listen__address=0.0.0.0:7687
+      - NEO4J_dbms_connector_http_listen__address=0.0.0.0:7474
+    ports:
+      - "7474:7474"  # Browser UI
+      - "7687:7687"  # Bolt protocol
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:7474"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - app-network
 
 volumes:
   postgres_data:
   redis_data:
   hl7_data:
+  neo4j_data:
+  neo4j_logs:
 
 networks:
   app-network:

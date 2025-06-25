@@ -1,13 +1,7 @@
 // This is a mock authentication service that can be easily upgraded to use JWT
 // When ready to switch to real JWT auth, update the implementation to make API calls
 // and handle real JWT tokens
-
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: string;
-}
+import { User } from '../contexts/AuthContext';
 
 interface LoginResponse {
   user: User;
@@ -15,19 +9,58 @@ interface LoginResponse {
   expiresIn: number;
 }
 
+// Helper function to generate avatar URL from name
+const getAvatarUrl = (name: string) => {
+  const colors = [
+    'FFAD08', 'EDD70A', '73B06F', '0C9F9D', '4058B8',
+    '8F3985', 'EF476F', 'FFD166', '06D6A0', '118AB2'
+  ];
+  const color = colors[Math.floor(Math.random() * colors.length)];
+  const initials = name.split(' ').map(n => n[0]).join('').toUpperCase();
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&background=${color}&color=fff&size=128`;
+};
+
 // Mock user database
 const mockUsers: User[] = [
   {
     id: '1',
     email: 'admin@example.com',
     name: 'Admin User',
-    role: 'admin'
+    role: 'admin',
+    title: 'System Administrator',
+    department: 'IT',
+    lastLogin: new Date().toISOString(),
+    avatar: 'https://randomuser.me/api/portraits/men/32.jpg'
   },
   {
     id: '2',
+    email: 'doctor@example.com',
+    name: 'Dr. Sarah Johnson',
+    role: 'doctor',
+    title: 'Senior Physician',
+    department: 'Cardiology',
+    lastLogin: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+    avatar: 'https://randomuser.me/api/portraits/women/44.jpg'
+  },
+  {
+    id: '3',
+    email: 'nurse@example.com',
+    name: 'Nurse Jane Smith',
+    role: 'nurse',
+    title: 'Head Nurse',
+    department: 'Emergency',
+    lastLogin: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
+    avatar: 'https://randomuser.me/api/portraits/women/68.jpg'
+  },
+  {
+    id: '4',
     email: 'user@example.com',
-    name: 'Regular User',
-    role: 'user'
+    name: 'John Doe',
+    role: 'user',
+    title: 'Medical Assistant',
+    department: 'Pediatrics',
+    lastLogin: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
+    avatar: 'https://randomuser.me/api/portraits/men/22.jpg'
   }
 ];
 
@@ -41,11 +74,29 @@ class AuthService {
     // In a real implementation, this would make an API call to /auth/login
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        const user = mockUsers.find(u => u.email === email);
+        let user = mockUsers.find(u => u.email === email);
         
         if (!user) {
-          reject(new Error('Invalid credentials'));
-          return;
+          // For demo purposes, create a new user if not found
+          if (email.endsWith('@example.com')) {
+            const name = email.split('@')[0].split('.')
+              .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+              .join(' ');
+            user = {
+              id: (mockUsers.length + 1).toString(),
+              email,
+              name,
+              role: 'user',
+              title: 'Staff',
+              department: 'General',
+              lastLogin: new Date().toISOString(),
+              avatar: getAvatarUrl(name)
+            };
+            mockUsers.push(user);
+          } else {
+            reject(new Error('Invalid credentials'));
+            return;
+          }
         }
 
         // In a real implementation, we would get this from the API

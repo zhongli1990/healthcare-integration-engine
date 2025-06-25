@@ -1,5 +1,5 @@
 import logging
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -9,9 +9,12 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette_prometheus import metrics, PrometheusMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from app.api.v1.api import router, register_startup_events, register_shutdown_events
-from app.core.config import get_settings
+from app.api.v1.api import router as v1_router, register_startup_events, register_shutdown_events
+from app.api.api_v1.api import api_router
+from app.core.config import settings
 from app.core.exceptions import APIException
+from app.db.base import Base
+from app.db.session import engine
 
 app = FastAPI(
     title="Healthcare Integration Engine",
@@ -32,7 +35,7 @@ app.add_middleware(
 )
 
 app.add_middleware(PrometheusMiddleware)
-app.add_middleware(SessionMiddleware, secret_key=get_settings().SECRET_KEY)
+app.add_middleware(SessionMiddleware, secret_key=settings.SECRET_KEY)
 
 # Error handling
 @app.exception_handler(APIException)
@@ -46,8 +49,9 @@ async def api_exception_handler(request: Request, exc: APIException):
 register_startup_events(app)
 register_shutdown_events(app)
 
-# API routes - router already has /api/v1 prefix
-app.include_router(router)
+# API routes
+app.include_router(api_router, prefix="/api/v1")
+app.include_router(v1_router, prefix="/api/v1")  # Legacy API routes
 
 # Prometheus metrics
 app.add_route("/metrics", metrics)
@@ -75,3 +79,7 @@ app.openapi = custom_openapi
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Create database tables (in development)
+if settings.DEBUG:
+    Base.metadata.create_all(bind=engine)

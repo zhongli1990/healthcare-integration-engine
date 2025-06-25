@@ -2,52 +2,103 @@
 
 A high-performance integration engine designed for healthcare organizations, supporting multiple protocols and standards.
 
-## Features
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
+[![Docker](https://img.shields.io/badge/Docker-✓-blue.svg)](https://www.docker.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.95.0+-green.svg)](https://fastapi.tiangolo.com/)
 
-- FastAPI-based REST API with async support
-- Real-time data processing capabilities
-- Support for HL7, DICOM, FHIR, and custom protocols
-- WebSocket support for real-time updates
-- Enterprise-grade security and authentication
-- Scalable architecture with Redis caching
-- Prometheus metrics for monitoring
-- Sentry error tracking
-- Comprehensive logging and audit trails
+## 📚 Documentation
 
-## Tech Stack
+- [Release Notes](RELEASE_NOTES.md) - Latest changes and version history
+- [Developer Guide](DEVELOPER_GUIDE.md) - Setup, development, and testing instructions
+- [User Guide](USER_GUIDE.md) - Getting started and usage instructions
 
-### Backend
-- Python 3.11+
-- FastAPI
-- SQLAlchemy (ORM)
-- Redis (Caching)
-- PostgreSQL (Database)
-- Prometheus (Metrics)
-- Sentry (Error Tracking)
+## ✨ Features
 
-### Frontend
-- React 18+
-- Vite
-- TypeScript
-- TailwindCSS
-- Socket.IO (Real-time updates)
+- **FastAPI-based REST API** with async support
+- **Real-time data processing** with WebSockets
+- **Multi-protocol Support**: HL7, DICOM, FHIR, and custom protocols
+- **Enterprise-grade security** with JWT authentication and role-based access control
+- **Scalable architecture** with Redis caching and message queue
+- **Comprehensive monitoring** with Prometheus metrics and Grafana dashboards
+- **Error tracking** with Sentry integration
+- **Containerized deployment** with Docker and Docker Compose
+- **CI/CD** ready with GitHub Actions
 
-## Getting Started
+## 🚀 Quick Start
 
-1. Install dependencies:
+### Prerequisites
+
+- Docker 20.10+ and Docker Compose
+- Python 3.11+ (for local development)
+- Node.js 18+ (for frontend development)
+
+### Running with Docker (Recommended)
+
+
 ```bash
-pip install -r requirements.txt
-```
+# Clone the repository
+git clone <repository-url>
+cd healthcare-integration-engine
 
-2. Set up environment variables:
-```bash
+# Copy and configure environment variables
 cp .env.example .env
-# Edit .env with your configuration
+
+# Start all services
+docker-compose up -d
 ```
 
-3. Initialize database:
+Access the application:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8850
+- API Documentation: http://localhost:8850/docs
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000 (admin/admin)
+
+## 🛠 Development
+
+### Project Structure
+
+```
+.
+├── backend/              # FastAPI backend application
+│   ├── app/              # Application code
+│   ├── tests/            # Backend tests
+│   └── requirements/      # Python dependencies
+├── frontend/             # React frontend application
+├── docker/               # Docker configuration files
+├── docs/                 # Documentation
+├── .github/              # GitHub Actions workflows
+└── docker-compose.yml    # Docker Compose configuration
+```
+
+### Running Tests
+
 ```bash
-alembic upgrade head
+# Run all tests with coverage
+make test-cov
+
+# Run specific test file
+docker-compose -f docker-compose.test.yml run --rm backend pytest tests/path/to/test_file.py
+```
+
+For more detailed testing instructions, see the [Developer Guide](DEVELOPER_GUIDE.md#testing).
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 📧 Contact
+
+For any questions or feedback, please contact the development team.
 ```
 
 4. Run the development server:
