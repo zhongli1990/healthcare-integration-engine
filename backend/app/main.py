@@ -9,8 +9,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette_prometheus import metrics, PrometheusMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
+# Import the consolidated router and events
 from app.api.v1.api import router as v1_router, register_startup_events, register_shutdown_events
-from app.api.api_v1.api import api_router
 from app.core.config import settings
 from app.core.exceptions import APIException
 from app.db.base import Base
@@ -49,9 +49,8 @@ async def api_exception_handler(request: Request, exc: APIException):
 register_startup_events(app)
 register_shutdown_events(app)
 
-# API routes
-app.include_router(api_router, prefix="/api/v1")
-app.include_router(v1_router, prefix="/api/v1")  # Legacy API routes
+# API routes - only include the main v1_router which contains all our API endpoints
+app.include_router(v1_router, prefix="/api/v1")
 
 # Prometheus metrics
 app.add_route("/metrics", metrics)

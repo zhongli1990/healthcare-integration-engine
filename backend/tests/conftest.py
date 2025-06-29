@@ -28,18 +28,20 @@ settings.SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URL
 # Create and drop test schema for tests
 @pytest.fixture(scope="session", autouse=True)
 def setup_database():
+    print("\n=== Setting up test database ===")
     # Create test schema
     with engine.connect() as conn:
+        print(f"Dropping and recreating schema: {settings.TEST_SCHEMA}")
         # Drop and recreate the schema to ensure a clean state
         conn.execute(text(f'DROP SCHEMA IF EXISTS {settings.TEST_SCHEMA} CASCADE'))
         conn.execute(text(f'CREATE SCHEMA {settings.TEST_SCHEMA}'))
         conn.commit()
     
     # Set search path for the connection
-    event.listen(engine, 'connect', 
-        lambda conn, _: conn.execute(
-            text(f'SET search_path TO {settings.TEST_SCHEMA}'))
-    )
+    def set_search_path(conn, _):
+        conn.execute(text(f'SET search_path TO {settings.TEST_SCHEMA}'))
+    
+    event.listen(engine, 'connect', set_search_path)
     
     # Import all models to ensure they are registered with SQLAlchemy
     from app.models.user import User
@@ -47,9 +49,17 @@ def setup_database():
     
     # Create all tables in the test schema
     with engine.connect() as conn:
-        # Set the search path for this connection
+        print(f"Creating tables in schema: {settings.TEST_SCHEMA}")
+        # Ensure we're using the test schema
         conn.execute(text(f'SET search_path TO {settings.TEST_SCHEMA}'))
+        # Create all tables
+        Base.metadata.create_all(bind=conn)
         conn.commit()
+        
+        # Verify schema is set correctly
+        result = conn.execute(text('SELECT current_schema()')).scalar()
+        print(f"Current schema after setup: {result}")
+        assert result == settings.TEST_SCHEMA.lower(), f"Schema not set correctly. Expected {settings.TEST_SCHEMA}, got {result}"
         
         # Create all tables
         Base.metadata.create_all(bind=conn)
@@ -115,8 +125,8 @@ def test_user(db):
     from app.schemas.user import UserCreate
     from app.crud import user as crud_user
     
-    email = "test123@example.com"
-    password = "test123password"
+    email = "tester123@example.com"
+    password = "tester123"
     
     # Check if user already exists and clean up if needed
     existing_user = crud_user.get_by_email(db, email=email)
@@ -128,16 +138,17 @@ def test_user(db):
     user_in = UserCreate(
         email=email,
         password=password,
-        full_name="Test User 123"
+        full_name="Test User"
     )
     
     user = crud_user.create(db, obj_in=user_in)
     
     # Verify the user was created and password is hashed
     db_user = crud_user.get_by_email(db, email=email)
-    assert db_user is not None, "Test123 user was not created in the database"
-    assert db_user.email == email.lower()  # Email should be normalized to lowercase
-    assert db_user.hashed_password != password  # Password should be hashed
+    assert db_user is not None, f"Test user {email} was not created in the database"
+    assert db_user.email == email.lower(), f"Email not normalized correctly. Expected {email.lower()}, got {db_user.email}"
+    assert db_user.hashed_password != password, "Password was not hashed"
+    print(f"Test user created successfully: {db_user.email}")
     
     # Add the plain password to the returned user object for testing
     db_user.plain_password = password
@@ -146,5 +157,10 @@ def test_user(db):
     yield db_user
     
     # Remove the test user
-    db.delete(db_user)
-    db.commit()
+    try:
+        db.delete(db_user)
+        db.commit()
+        print(f"Cleaned up test user: {email}")
+    except Exception as e:
+        print(f"Error cleaning up test user: {e}")
+        db.rollback()

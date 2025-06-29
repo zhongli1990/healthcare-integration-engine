@@ -124,12 +124,43 @@ services:
     networks:
       - app-network
 
+  iris-import:
+    build:
+      context: .
+      dockerfile: services/iris_import/Dockerfile
+    container_name: healthcare-integration-iris-import
+    restart: unless-stopped
+    environment:
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=healthcare123
+      - PYTHONPATH=/app
+      - UPLOAD_DIR=/app/uploads
+      - PYTHONUNBUFFERED=1
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./services/iris_import/app:/app/app
+      - iris_import_uploads:/app/uploads
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
 volumes:
   postgres_data:
   redis_data:
   hl7_data:
   neo4j_data:
   neo4j_logs:
+  iris_import_uploads:
 
 networks:
   app-network:

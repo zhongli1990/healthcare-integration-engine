@@ -1,13 +1,26 @@
-from fastapi import APIRouter, status, FastAPI
+from fastapi import APIRouter, status, FastAPI, Depends
 from typing import List, Dict, Any, Callable
 from pydantic import BaseModel
 import logging
+from sqlalchemy.orm import Session
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 from .endpoints import hl7 as hl7_endpoints
 from .deps import start_hl7_services, stop_hl7_services
+
+# Import endpoints from api_v1
+from app.api.api_v1.endpoints import health as health_endpoints
+auth_endpoints = __import__('app.api.api_v1.endpoints.auth', fromlist=['router'])
+user_endpoints = __import__('app.api.api_v1.endpoints.users', fromlist=['router'])
+
+# Import database session
+try:
+    from app.db.session import SessionLocal
+except ImportError:
+    # Fallback for testing
+    SessionLocal = None
 
 # Response Models
 class HealthCheckResponse(BaseModel):
@@ -20,16 +33,26 @@ class ProtocolListResponse(BaseModel):
     description: str = "List of supported healthcare data exchange protocols"
 
 def create_api_router() -> APIRouter:
+    # Create router without prefix since we'll add it in main.py
     router = APIRouter(
-        prefix="/api/v1",
         tags=["API v1"],
         responses={
             status.HTTP_500_INTERNAL_SERVER_ERROR: {"description": "Internal Server Error"}
         }
     )
     
-    # Include endpoints
+    # Include all endpoints under their respective prefixes
     router.include_router(hl7_endpoints.router, prefix="/hl7", tags=["HL7"])
+    
+    # Include health, auth, and user endpoints from api_v1
+    if hasattr(health_endpoints, 'router'):
+        router.include_router(health_endpoints.router, prefix="/health", tags=["health"])
+    
+    if hasattr(auth_endpoints, 'router'):
+        router.include_router(auth_endpoints.router, prefix="/auth", tags=["auth"])
+    
+    if hasattr(user_endpoints, 'router'):
+        router.include_router(user_endpoints.router, prefix="/users", tags=["users"])
     
     return router
 

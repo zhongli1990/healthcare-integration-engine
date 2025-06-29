@@ -17,16 +17,23 @@ class CRUDSession(CRUDBase[Session, SessionCreate, SessionUpdate]):
         self, db: Session, *, user_id: str, refresh_token: str, expires_at: datetime
     ) -> Session:
         """Create a new user session."""
-        db_obj = Session(
+        from app.models.session import Session as SessionModel
+        
+        db_obj = SessionModel(
             user_id=user_id,
-            token=refresh_token,  # Changed from refresh_token to token to match model
+            token=refresh_token,
             expires_at=expires_at,
-            is_active=True,  # Changed from is_revoked to is_active to match model
+            is_active=True,
         )
+        
         db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        try:
+            db.commit()
+            db.refresh(db_obj)
+            return db_obj
+        except Exception as e:
+            db.rollback()
+            raise e
     
     def revoke(self, db: Session, *, session_id: str) -> Optional[Session]:
         """Revoke a session by ID."""
