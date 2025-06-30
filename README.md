@@ -9,6 +9,15 @@ A high-performance integration engine designed for healthcare organizations, sup
 
 ## 📚 Documentation
 
+For comprehensive documentation, please visit our [Documentation Hub](DOCS.md) which includes:
+
+- **Getting Started**: Quick start guides and overview
+- **Architecture & Design**: System architecture and component details
+- **API Documentation**: Comprehensive API references
+- **Integration Guides**: Connecting with other systems
+- **Development**: Setup and contribution guidelines
+
+### Quick Links
 - [Release Notes](RELEASE_NOTES.md) - Latest changes and version history
 - [Developer Guide](DEVELOPER_GUIDE.md) - Setup, development, and testing instructions
 - [User Guide](USER_GUIDE.md) - Getting started and usage instructions
