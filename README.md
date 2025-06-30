@@ -1,4 +1,4 @@
-# Enterprise Healthcare Integration Engine
+# Healthcare Integration Engine - developed in plain English, assited by GenAI via Windsurf
 
 A high-performance integration engine designed for healthcare organizations, supporting multiple protocols and standards.
 
