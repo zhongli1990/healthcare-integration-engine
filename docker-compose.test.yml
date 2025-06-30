@@ -1,27 +1,50 @@
 version: '3.8'
 
 services:
+  # Test Runner - This container will stay running and can be used to execute tests manually
   test:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.test
+      context: .
+      dockerfile: integration_engine/Dockerfile.test
     container_name: healthcare-integration-tests
     environment:
       - TESTING=true
+      - ENVIRONMENT=test
+      - LOG_LEVEL=DEBUG
+      # Database
       - DATABASE_URL=postgresql://postgres:postgres@test-db:5432/test_healthcare_integration
-      - TEST_DATABASE_URL=postgresql://postgres:postgres@test-db:5432/test_healthcare_integration?options=-c%20search_path%3Dtest_schema
+      - TEST_DATABASE_URL=postgresql://postgres:postgres@test-db:5432/test_healthcare_integration
       - TEST_SCHEMA=test_schema
-      - JWT_SECRET=test-secret
+      # Redis
+      - REDIS_URL=redis://test-redis:6379/0
+      # Neo4j - Using the main project's Neo4j container
+      - NEO4J_URI=bolt://host.docker.internal:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=healthcare123
+      # File paths
+      - TEST_DATA_DIR=/app/tests/data
+      - INPUT_DIR=/app/tests/data/inputs
+      - OUTPUT_DIR=/app/tests/data/outputs
+      - PROCESSED_DIR=/app/tests/data/processed
+      - ERROR_DIR=/app/tests/data/errors
     depends_on:
       test-db:
         condition: service_healthy
+      test-redis:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     working_dir: /app
     volumes:
-      - ./backend:/app
-      - ./backend/tests:/app/tests
+      - .:/app
+      - ./tests:/app/tests
+      - ./config:/app/config:ro
+    tty: true  # Keep container running
+    stdin_open: true  # Keep STDIN open
     networks:
       - test-network
 
+  # Test Database
   test-db:
     image: postgres:15-alpine
     container_name: healthcare-integration-test-db
@@ -40,9 +63,30 @@ services:
     networks:
       - test-network
 
-volumes:
-  test_postgres_data:
+  # Test Redis
+  test-redis:
+    image: redis:7-alpine
+    container_name: test-redis
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    ports:
+      - "6379:6379"
+    networks:
+      - test-network
 
+  # Using main project's Neo4j container (healthcare-neo4j)
+  # Connect to it via host.docker.internal or the service name if in the same network
 networks:
   test-network:
     driver: bridge
+
+volumes:
+  test_postgres_data:
+  redis_test_data:
+
