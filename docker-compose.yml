@@ -1,6 +1,105 @@
 version: '3.8'
 
 services:
+  # Integration Engine Service
+  integration-engine:
+    build:
+      context: .
+      dockerfile: integration_engine/Dockerfile
+      target: production
+    container_name: healthcare-integration-engine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"  # API
+      - "2575:2575"  # HL7 MLLP
+      - "8080:8080"  # FHIR API
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+      - REDIS_URL=redis://redis:6379/0
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=healthcare123
+      # File paths
+      - INPUT_DIR=/data/inputs
+      - OUTPUT_DIR=/data/outputs
+      - PROCESSED_DIR=/data/processed
+      - ERROR_DIR=/data/errors
+    volumes:
+      - integration_data:/data
+      - ./integration_engine:/app/integration_engine:cached
+      - ./config:/app/config:ro
+    depends_on:
+      redis:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - app-network
+    
+  # Integration Engine Test Runner
+  test-integration-engine:
+    build:
+      context: .
+      dockerfile: integration_engine/Dockerfile.test
+      target: test
+    container_name: test-integration-engine
+    depends_on:
+      redis:
+        condition: service_healthy
+      integration-engine:
+        condition: service_healthy
+    environment:
+      - ENVIRONMENT=test
+      - LOG_LEVEL=DEBUG
+      - REDIS_URL=redis://redis:6379/0
+      - TEST_DATA_DIR=/app/test_data
+    volumes:
+      - ./integration_engine:/app
+      - ./test_data:/app/test_data
+      - ./config:/app/config:ro
+    networks:
+      - app-network
+
+  # Monitoring Stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - app-network
+    depends_on:
+      - redis
+      - integration-engine
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    networks:
+      - app-network
+    depends_on:
+      - prometheus
   backend:
     build:
       context: ./backend
@@ -161,6 +260,8 @@ volumes:
   neo4j_data:
   neo4j_logs:
   iris_import_uploads:
+  prometheus-data:
+  grafana-storage:
 
 networks:
   app-network:
