@@ -1,0 +1,62 @@
+# Test stage
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    libpq-dev \
+    curl \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies directly
+RUN pip install --no-cache-dir \
+    pytest \
+    pytest-cov \
+    pytest-asyncio \
+    pytest-mock \
+    PyYAML \
+    neo4j \
+    redis \
+    pydantic \
+    fastapi \
+    uvicorn \
+    python-multipart \
+    python-jose[cryptography] \
+    passlib[bcrypt] \
+    python-dotenv \
+    sqlalchemy \
+    psycopg2-binary \
+    alembic \
+    python-dateutil \
+    requests \
+    aiohttp \
+    asyncpg \
+    tenacity \
+    python-json-logger \
+    python-rapidjson
+
+# Copy application code
+COPY . .
+
+# Create test data directories
+RUN mkdir -p /app/tests/data/{inputs,outputs,processed,errors} \
+    && chmod -R 777 /app/tests/data
+
+# Set environment variables for testing
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV ENVIRONMENT=test
+ENV TEST_DATA_DIR=/app/tests/data
+ENV REDIS_URL=redis://redis-test:6379/0
+
+# Make test scripts executable
+RUN chmod +x /app/run_tests.sh
+
+# Default command - keep container running
+WORKDIR /app
+CMD ["tail", "-f", "/dev/null"]

@@ -1,0 +1,479 @@
+# Integration Engine Configuration
+# This is a sample configuration file demonstrating all available options
+
+# Global settings
+global:
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  environment: "development"  # development, staging, production
+  instance_id: "integration-engine-01"
+  timezone: "UTC"
+
+# Queue configuration
+queues:
+  type: "redis"  # redis or memory
+  redis:
+    host: "localhost"
+    port: 6379
+    db: 0
+    password: ""  # Leave empty if no password
+    ssl: false
+    max_connections: 100
+    
+  # Memory queue settings (used when type=memory)
+  memory:
+    max_size: 10000  # Max messages in memory queue
+
+# Schema registry configuration
+schema_registry:
+  schemas_dir: "./schemas"
+  auto_reload: true
+  reload_interval: 60  # seconds
+
+# Inbound services configuration
+inbound:
+  # HL7 v2 MLLP Listener
+  hl7v2_listener:
+    enabled: true
+    host: "0.0.0.0"
+    port: 2575
+    input_queue: "inbound_hl7v2_messages"
+    options:
+      buffer_size: 4096
+      max_connections: 10
+      connection_timeout: 60  # seconds
+      keep_alive: true
+      keep_alive_interval: 60  # seconds
+      log_messages: true
+      max_message_size: 10485760  # 10MB
+      character_encoding: "utf-8"
+      validate_checksum: true
+      validate_message_structure: true
+      auto_acknowledge: true
+      reject_on_error: true
+
+  # FHIR REST API Listener
+  fhir_listener:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8080
+    input_queue: "inbound_fhir_messages"
+    options:
+      debug: false
+      workers: 4
+      backlog: 100
+      limit_concurrency: 1000
+      timeout_keep_alive: 5  # seconds
+      timeout_graceful_shutdown: 5  # seconds
+      log_level: "info"
+      cors_enabled: true
+      cors_origins: ["*"]
+      auth_enabled: false
+      auth_users: {}  # username: password
+      rate_limit: "1000/hour"
+      max_request_size: 10485760  # 10MB
+
+# Processing services configuration
+processing:
+  # Validation Service
+  validation:
+    enabled: true
+    input_queue: "inbound_messages"
+    output_queue: "validated_messages"
+    error_queue: "validation_errors"
+    options:
+      validate_schema: true
+      validate_rules: true
+      strict_mode: false
+      max_validation_errors: 10
+      cache_schemas: true
+      cache_ttl: 3600  # seconds
+
+  # Transformation Service
+  transformation:
+    enabled: true
+    input_queue: "validated_messages"
+    output_queue: "transformed_messages"
+    error_queue: "transformation_errors"
+    options:
+      cache_templates: true
+      cache_ttl: 3600  # seconds
+      default_language: "jinja2"
+      max_template_size: 1048576  # 1MB
+      enable_custom_filters: true
+      custom_filters_module: "custom_filters"
+
+  # Routing Service
+  routing:
+    enabled: true
+    input_queue: "transformed_messages"
+    default_route: "unrouted_messages"
+    error_queue: "routing_errors"
+    options:
+      cache_routes: true
+      cache_ttl: 300  # seconds
+      max_route_depth: 10
+      enable_metrics: true
+      metrics_prefix: "integration_engine_routing_"
+    
+    # Route definitions
+    routes:
+      # Route HL7 v2 ADT messages to ADT processor
+      - name: "route-hl7v2-adt"
+        description: "Route HL7 v2 ADT messages to ADT processor"
+        priority: 10
+        conditions:
+          - field: "header.content_type"
+            operator: "contains"
+            value: "hl7-v2"
+          - field: "header.message_type"
+            operator: "regex"
+            value: "^ADT_"
+        actions:
+          - type: "forward"
+            target: "adt_processor"
+        enabled: true
+
+      # Route FHIR Patient resources to patient registry
+      - name: "route-fhir-patient"
+        description: "Route FHIR Patient resources to patient registry"
+        priority: 10
+        conditions:
+          - field: "body.content_type"
+            operator: "contains"
+            value: "fhir+json"
+          - field: "body.content.resourceType"
+            operator: "=="
+            value: "Patient"
+        actions:
+          - type: "forward"
+            target: "patient_registry"
+        enabled: true
+
+      # Route FHIR Observation resources to clinical data processor
+      - name: "route-fhir-observation"
+        description: "Route FHIR Observation resources to clinical data processor"
+        priority: 10
+        conditions:
+          - field: "body.content_type"
+            operator: "contains"
+            value: "fhir+json"
+          - field: "body.content.resourceType"
+            operator: "=="
+            value: "Observation"
+        actions:
+          - type: "forward"
+            target: "clinical_data_processor"
+        enabled: true
+
+      # Default route for all other messages
+      - name: "default-route"
+        description: "Default route for all unmatched messages"
+        priority: 1000
+        conditions: []
+        actions:
+          - type: "forward"
+            target: "unrouted_messages"
+        enabled: true
+
+# Outbound services configuration
+outbound:
+  # HL7 v2 Sender (MLLP)
+  hl7v2_sender:
+    enabled: true
+    host: "localhost"
+    port: 2576
+    input_queue: "outbound_hl7v2_messages"
+    error_queue: "outbound_hl7v2_errors"
+    options:
+      reconnect_interval: 5  # seconds
+      connection_timeout: 30  # seconds
+      response_timeout: 30  # seconds
+      auto_reconnect: true
+      max_retries: 3
+      retry_delay: 5  # seconds
+      keep_alive: true
+      keep_alive_interval: 30  # seconds
+      log_messages: true
+      validate_responses: true
+      ack_timeout: 30  # seconds
+
+  # FHIR REST API Sender
+  fhir_sender:
+    enabled: true
+    base_url: "http://hapi.fhir.org/baseR4"
+    input_queue: "outbound_fhir_messages"
+    error_queue: "outbound_fhir_errors"
+    auth:
+      type: "none"  # none, basic, oauth2, token
+      # Basic auth
+      username: ""
+      password: ""
+      # OAuth2
+      token_url: ""
+      client_id: ""
+      client_secret: ""
+      scope: ""
+      # Token auth
+      token: ""
+    options:
+      timeout: 30  # seconds
+      max_retries: 3
+      retry_delay: 5  # seconds
+      verify_ssl: true
+      follow_redirects: true
+      max_redirects: 5
+      log_requests: true
+      log_responses: false
+      log_errors: true
+      default_headers:
+        Accept: "application/fhir+json"
+        Content-Type: "application/fhir+json; charset=utf-8"
+        User-Agent: "IntegrationEngine/FHIRSender/1.0"
+
+  # File Sender
+  file_sender:
+    enabled: true
+    output_dir: "./output"
+    input_queue: "outbound_file_messages"
+    error_queue: "outbound_file_errors"
+    options:
+      filename_pattern: "{timestamp}_{message_id}{ext}"
+      timestamp_format: "%Y%m%d_%H%M%S"
+      create_subdirs: true
+      mode: "w"  # 'w' for write, 'a' for append, 'wb' for binary write, 'ab' for binary append
+      encoding: "utf-8"
+      file_extensions:
+        "application/json": ".json"
+        "application/fhir+json": ".json"
+        "application/hl7-v2+er7": ".hl7"
+        "text/plain": ".txt"
+        "text/csv": ".csv"
+        "application/xml": ".xml"
+      default_extension: ".dat"
+      overwrite: false
+      append_newline: true
+      gzip: false
+      gzip_level: 6
+      rotate: false
+      max_size: 104857600  # 100MB
+      backup_count: 5
+      umask: 0o022
+
+# Monitoring and metrics
+monitoring:
+  enabled: true
+  metrics:
+    enable_prometheus: true
+    prometheus_port: 9090
+    enable_statsd: false
+    statsd_host: "localhost"
+    statsd_port: 8125
+    statsd_prefix: "integration_engine."
+    enable_health_checks: true
+    health_check_port: 8081
+  logging:
+    enable_access_log: true
+    access_log_format: "%(asctime)s - %(client_addr)s - %(request_line)s %(status_code)d"
+    enable_error_log: true
+    error_log_level: "ERROR"
+    log_file: "logs/engine.log"
+    max_file_size: 10485760  # 10MB
+    backup_count: 5
+
+# Tracing and observability
+tracing:
+  enabled: true
+  service_name: "integration-engine"
+  jaeger:
+    enabled: false
+    agent_host: "localhost"
+    agent_port: 6831
+    collector_endpoint: "http://localhost:14268/api/traces"
+    sampler_type: "const"
+    sampler_param: 1.0
+  zipkin:
+    enabled: false
+    endpoint: "http://localhost:9411/api/v2/spans"
+    sample_rate: 1.0
+  otlp:
+    enabled: false
+    endpoint: "localhost:4317"
+    insecure: true
+    compression: "gzip"
+
+# Alerting
+alerting:
+  enabled: false
+  providers:
+    - type: "email"
+      host: "smtp.example.com"
+      port: 587
+      username: "user@example.com"
+      password: "password"
+      from: "alerts@example.com"
+      to: ["admin@example.com"]
+      tls: true
+    - type: "slack"
+      webhook_url: "https://hooks.slack.com/services/..."
+      channel: "#alerts"
+      username: "Integration Engine"
+      icon_emoji: ":warning:"
+  rules:
+    - name: "high_error_rate"
+      condition: "error_rate > 5% over 5m"
+      severity: "critical"
+      summary: "High error rate detected"
+      description: "Error rate has exceeded 5% over the last 5 minutes"
+      actions: ["email", "slack"]
+    - name: "queue_backlog"
+      condition: "queue_length > 1000"
+      severity: "warning"
+      summary: "Queue backlog detected"
+      description: "Message queue length has exceeded 1000"
+      actions: ["slack"]
+
+# Persistence
+persistence:
+  enabled: true
+  type: "sqlite"  # sqlite, postgresql, mysql
+  sqlite:
+    database: "data/integration_engine.db"
+    journal_mode: "WAL"
+    synchronous: "NORMAL"
+    busy_timeout: 5000  # ms
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "integration_engine"
+    username: "postgres"
+    password: "postgres"
+    sslmode: "prefer"
+    pool_min: 1
+    pool_max: 10
+  mysql:
+    host: "localhost"
+    port: 3306
+    database: "integration_engine"
+    username: "root"
+    password: "password"
+    charset: "utf8mb4"
+    pool_min: 1
+    pool_max: 10
+  models:
+    - "core.models.message"
+    - "core.models.audit"
+    - "core.models.routing"
+  migrations_dir: "migrations"
+  auto_migrate: true
+
+# API Server (for management and monitoring)
+api:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  secret_key: "change-this-in-production"
+  cors_enabled: true
+  cors_origins: ["*"]
+  auth_enabled: true
+  auth_users:
+    admin: 
+      password: "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"  # "secret"
+      scopes: ["admin"]
+    user:
+      password: "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW"  # "secret"
+      scopes: ["read", "write"]
+  rate_limit: "1000/hour"
+  enable_swagger: true
+  enable_redoc: true
+  enable_metrics: true
+  metrics_path: "/metrics"
+  health_check_path: "/health"
+  log_level: "info"
+
+# Plugins
+plugins:
+  enabled: true
+  directory: "plugins"
+  autoload: true
+  autoload_delay: 5  # seconds
+  whitelist: []  # Empty means all plugins are allowed
+  blacklist: []
+  config:
+    # Plugin-specific configuration
+    example_plugin:
+      enabled: true
+      setting1: "value1"
+      setting2: 42
+
+# Feature flags
+features:
+  enable_experimental: false
+  enable_unsafe_operations: false
+  enable_debug_endpoints: false
+  enable_pprof: false
+  enable_tracing_sample: true
+  sample_rate: 0.1  # 10% of requests
+
+# External integrations
+integrations:
+  redis:
+    enabled: true
+    hosts:
+      - host: "localhost"
+        port: 6379
+    password: ""
+    db: 0
+    ssl: false
+    sentinel: false
+    sentinel_master_name: "mymaster"
+    sentinel_password: ""
+    pool_size: 10
+    pool_timeout: 5
+    socket_timeout: 5
+    socket_connect_timeout: 5
+    retry_on_timeout: true
+    max_connections: 1000
+
+  # Add other external integrations as needed
+  # postgresql: {}
+  # mysql: {}
+  # mongodb: {}
+  # elasticsearch: {}
+  # kafka: {}
+  # rabbitmq: {}
+  # aws: {}
+  # gcp: {}
+  # azure: {}
+
+# Custom settings for specific environments
+# These can override any settings above
+environments:
+  development:
+    log_level: "DEBUG"
+    monitoring:
+      enabled: true
+    api:
+      debug: true
+      enable_swagger: true
+      enable_redoc: true
+    features:
+      enable_experimental: true
+      enable_debug_endpoints: true
+
+  production:
+    log_level: "INFO"
+    monitoring:
+      enabled: true
+    api:
+      debug: false
+      enable_swagger: false
+      enable_redoc: false
+    features:
+      enable_experimental: false
+      enable_debug_endpoints: false
+
+# Override settings based on the current environment
+# This section is automatically populated based on the 'environment' setting
+# in the global section
+environment: *global.environment

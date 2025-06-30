@@ -1,0 +1,140 @@
+# Test configuration for development
+
+global:
+  log_level: "DEBUG"
+  environment: "development"
+  instance_id: "test-engine-001"
+  timezone: "UTC"
+
+queues:
+  type: "memory"  # Use in-memory queues for testing
+  memory:
+    max_size: 1000
+
+# Schema registry
+schema_registry:
+  schemas_dir: "tests/data/schemas"
+  auto_reload: true
+
+# Inbound services
+inbound:
+  hl7v2_listener:
+    enabled: true
+    host: "0.0.0.0"
+    port: 2575
+    input_queue: "inbound_hl7v2_messages"
+    options:
+      buffer_size: 4096
+      max_connections: 5
+
+  fhir_listener:
+    enabled: true
+    host: "0.0.0.0"
+    port: 8080
+    input_queue: "inbound_fhir_messages"
+    options:
+      debug: true
+      workers: 2
+
+# Processing services
+processing:
+  validation:
+    enabled: true
+    input_queue: "inbound_messages"
+    output_queue: "validated_messages"
+    error_queue: "validation_errors"
+    options:
+      validate_schema: true
+      validate_rules: true
+      strict_mode: false
+
+  transformation:
+    enabled: true
+    input_queue: "validated_messages"
+    output_queue: "transformed_messages"
+    error_queue: "transformation_errors"
+    options:
+      cache_templates: true
+      default_language: "jinja2"
+
+  routing:
+    enabled: true
+    input_queue: "transformed_messages"
+    default_route: "unrouted_messages"
+    error_queue: "routing_errors"
+    options:
+      cache_routes: true
+    
+    routes:
+      - name: "test-route-hl7v2-adt"
+        description: "Test route for HL7 v2 ADT messages"
+        priority: 10
+        conditions:
+          - field: "header.content_type"
+            operator: "contains"
+            value: "hl7-v2"
+          - field: "header.message_type"
+            operator: "regex"
+            value: "^ADT_"
+        actions:
+          - type: "forward"
+            target: "test_adt_processor"
+        enabled: true
+
+# Outbound services
+outbound:
+  hl7v2_sender:
+    enabled: true
+    host: "localhost"
+    port: 2576
+    input_queue: "outbound_hl7v2_messages"
+    error_queue: "outbound_hl7v2_errors"
+    options:
+      reconnect_interval: 5
+      connection_timeout: 10
+      auto_reconnect: true
+
+  fhir_sender:
+    enabled: true
+    base_url: "http://hapi.fhir.org/baseR4"
+    input_queue: "outbound_fhir_messages"
+    error_queue: "outbound_fhir_errors"
+    auth:
+      type: "none"
+    options:
+      timeout: 30
+      max_retries: 3
+
+  file_sender:
+    enabled: true
+    output_dir: "./test_output"
+    input_queue: "outbound_file_messages"
+    error_queue: "outbound_file_errors"
+    options:
+      filename_pattern: "test_{timestamp}_{message_id}{ext}"
+      create_subdirs: true
+      mode: "w"
+      encoding: "utf-8"
+
+# Monitoring
+monitoring:
+  enabled: true
+  metrics:
+    enable_prometheus: true
+    prometheus_port: 9090
+    enable_health_checks: true
+    health_check_port: 8081
+
+# API Server
+api:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8000
+  debug: true
+  secret_key: "test-secret-key"
+  cors_enabled: true
+  cors_origins: ["*"]
+  auth_enabled: false
+  enable_swagger: true
+  enable_redoc: true
+  enable_metrics: true

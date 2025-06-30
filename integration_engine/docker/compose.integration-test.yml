@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # Integration Engine Test Runner
+  test-runner:
+    build:
+      context: ..
+      dockerfile: Dockerfile.test
+    container_name: test-integration-engine
+    environment:
+      - ENVIRONMENT=test
+      - LOG_LEVEL=DEBUG
+      - REDIS_URL=redis://redis-test:6379/0
+      - FHIR_SERVER_URL=http://mock-fhir-server:8080/fhir
+      - TEST_DATA_DIR=/app/integration_engine/tests/data
+      - PYTHONPATH=/app:/app/integration_engine
+    working_dir: /app
+    volumes:
+      - /Users/zhong/CascadeProjects/windsurf-project:/app
+    command: ["pytest", "integration_engine/tests/", "-v", "--log-level=DEBUG"]
+    depends_on:
+      redis-test:
+        condition: service_healthy
+      mock-fhir-server:
+        condition: service_started
+    networks:
+      - integration-test-network
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget -qO- http://mock-fhir-server:8080/fhir/metadata > /dev/null && curl -f http://localhost:8000/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis for message queuing
+  redis-test:
+    image: redis:7-alpine
+    container_name: redis-test
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-test-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - integration-test-network
+
+  # Mock FHIR Server (HAPI FHIR)
+  mock-fhir-server:
+    image: hapiproject/hapi:latest
+    container_name: mock-fhir-server
+    ports:
+      - "8090:8080"
+    environment:
+      - HAPI_FHIR_VERSION=DSTU3
+      - HAPI_REUSE_CACHED_SEARCH_RESULTS_MILLIS=1000
+    volumes:
+      - fhir-data:/data/hapi
+    networks:
+      - integration-test-network
+
+  # Test Data Generator (Optional)
+  test-data-generator:
+    image: python:3.11-slim
+    container_name: test-data-generator
+    volumes:
+      - ./test_data:/test_data
+    command: >
+      sh -c "echo 'Generating test data...' && 
+             mkdir -p /test_data/inputs && 
+             echo 'MSH|^~\&|SENDING_APP|SENDING_FACILITY|RECEIVING_APP|RECEIVING_FACILITY|20230629123045||ADT^A01|MSG00001|P|2.3\nEVN|A01|20230629123045\nPID|1||12345||Doe^John^^^Mr.||19700101|M||2106-3|123 Main St^^Anytown^CA^12345^USA\nPV1|1|O|OPD||||2000000001^Smith^John^^^Dr.|||||||||||V01' > /test_data/inputs/test_hl7.hl7 && 
+             echo 'Test data generated'"
+    networks:
+      - integration-test-network
+
+volumes:
+  redis-test-data:
+  fhir-data:
+
+networks:
+  integration-test-network:
+    driver: bridge
