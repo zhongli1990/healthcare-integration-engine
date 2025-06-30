@@ -1,0 +1,135 @@
+# Integration Engine Configuration
+
+# Input adapters configuration
+inputs:
+  file:
+    enabled: true
+    class: inputs.file_input.FileInputAdapter
+    config:
+      input_dir: "/data/inputs"
+      processed_dir: "/data/processed"
+      error_dir: "/data/errors"
+      file_pattern: "*.hl7"
+      poll_interval: 1.0
+  
+  mllp:
+    enabled: false
+    class: inputs.mllp_input.MLLPInputAdapter
+    config:
+      host: "0.0.0.0"
+      port: 2575
+      max_connections: 10
+  
+  http:
+    enabled: false
+    class: inputs.http_input.HTTPInputAdapter
+    config:
+      host: "0.0.0.0"
+      port: 8080
+      path: "/api/messages"
+
+# Output adapters configuration
+outputs:
+  file:
+    enabled: true
+    class: outputs.file_output.FileOutputAdapter
+    config:
+      output_dir: "/data/outputs"
+      file_extension: ".hl7"
+      file_naming: "{message_id}"
+      create_subdirs: true
+  
+  fhir:
+    enabled: false
+    class: outputs.fhir_output.FHIROutputAdapter
+    config:
+      base_url: "http://fhir-server:8080/fhir"
+      auth_type: "basic"
+      username: "admin"
+      password: "password"
+  
+  database:
+    enabled: false
+    class: outputs.database_output.DatabaseOutputAdapter
+    config:
+      connection_string: "postgresql://user:password@db:5432/messages"
+      table_name: "messages"
+
+# Processing pipeline configuration
+processing:
+  validation:
+    enabled: true
+    class: processing.validation.ValidationProcessor
+    config:
+      schemas:
+        hl7:
+          type: "hl7"
+          message_types: ["ADT^A01", "ADT^A04", "ORU^R01"]
+        fhir:
+          type: "json"
+          schema_file: "schemas/fhir/patient.schema.json"
+  
+  transformation:
+    enabled: true
+    class: processing.transformation.TransformationProcessor
+    config:
+      mappings:
+        - name: "hl7_to_fhir_patient"
+          from: "hl7"
+          to: "fhir/Patient"
+          mapping_file: "mappings/hl7_to_fhir_patient.json"
+  
+  routing:
+    enabled: true
+    class: processing.routing.RoutingProcessor
+    config:
+      default_destinations: ["file"]
+      rules:
+        - name: "route_adt_to_fhir"
+          condition:
+            "$and":
+              - header.message_type: "ADT^A01"
+              - "$regex": "PID-18"
+          destinations: ["fhir"]
+          priority: 100
+        - name: "route_oru_to_database"
+          condition:
+            header.message_type: "ORU^R01"
+          destinations: ["database"]
+          priority: 50
+
+# Queue configuration
+queues:
+  default: "redis"
+  redis:
+    host: "redis"
+    port: 6379
+    db: 0
+    max_connections: 10
+  
+  # In-memory queue (for testing)
+  memory:
+    max_size: 10000
+
+# Logging configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "/var/log/integration_engine.log"
+  max_size: 10485760  # 10MB
+  backup_count: 5
+
+# Monitoring configuration
+monitoring:
+  enabled: true
+  port: 9090
+  metrics_path: "/metrics"
+  collect_interval: 15  # seconds
+
+# Health check configuration
+health:
+  enabled: true
+  port: 8081
+  path: "/health"
+  check_interval: 30  # seconds
+  timeout: 5  # seconds
