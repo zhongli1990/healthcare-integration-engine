@@ -1,3 +1,83 @@
-__pycache__
-.venv
-/dist
+# Backup directories
+mcp-server-backup/
+mcp-server-isc-iris-backup-*/
+
+# Python cache and virtual environment
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+venv/
+env/
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs and databases
+*.log
+*.sqlite
+*.db
+
+# Environment variables
+.env
+
+# Local development files
+local_settings.py
+
+# Test coverage
+htmlcov/
+.coverage
+.coverage.*
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Docker
+.env
+
+# Local development
+.venv/
+
+# Test data
+test_data/epr_inbound/archive/*
+test_data/epr_inbound/error/*
+test_data/epr_inbound/work/*
+test_data/epr_inbound/processed/*
+!test_data/epr_inbound/in/.gitkeep
+!test_data/epr_inbound/out/.gitkeep
