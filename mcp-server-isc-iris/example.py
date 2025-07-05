@@ -25,7 +25,7 @@ class MCPClient:
                 "IRIS_PORT": "1972",
                 "IRIS_NAMESPACE": "USER",
                 "IRIS_USERNAME": "_SYSTEM",
-                "IRIS_PASSWORD": "SYS",
+                "IRIS_PASSWORD": "password",
             }
         )
         # server_params = StdioServerParameters(
