@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  database:
+    image: containers.intersystems.com/intersystems/iris-community:2025.1
+    container_name: iris-database
+    restart: always
+    ports:
+      - "1972:1972"  # IRIS SuperServer port
+      - "52773:52773"  # IRIS Web Gateway port
+    environment:
+      - IRIS_PASSWORD=password
+    healthcheck:
+      test: ["CMD", "iris", "session", "iris", "-U%SYS", "w ##class(%SYSTEM.Util).GetEncode()"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    command:
+      - -a
+      - iris session iris -U%SYS '##class(Security.Users).UnExpireUserPasswords("*") && set ^%SYS("Security","Users","_SYSTEM","PasswordNeverExpires")=1'
+    volumes:
+      - iris_data:/usr/irissys/mgr/
+      - iris_bindings:/usr/irissys/mgr/python/
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-server-iris
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      - IRIS_HOSTNAME=database
+      - IRIS_PORT=1972
+      - IRIS_NAMESPACE=USER
+      - IRIS_USERNAME=_SYSTEM
+      - IRIS_PASSWORD=password
+      - PYTHONUNBUFFERED=1
+      - LOG_LEVEL=DEBUG
+    ports:
+      - "8881:8080"
+    volumes:
+      - ./src:/app/src
+      - ./example.py:/app/example.py
+      - iris_bindings:/usr/irissys/mgr/python/
+    working_dir: /app
+    command: sse --port 8080
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -f http://localhost:8080 || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  iris_data:
+  iris_bindings:
