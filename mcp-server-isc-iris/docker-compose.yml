@@ -2,14 +2,15 @@ version: '3.8'
 
 services:
   database:
-    image: containers.intersystems.com/intersystems/iris-community:2025.1
+    #image: containers.intersystems.com/intersystems/iris-community:2025.1
+    image: containers.intersystems.com/intersystems/irishealth-community:2025.1
     container_name: iris-database
     restart: always
     ports:
       - "1972:1972"  # IRIS SuperServer port
       - "52773:52773"  # IRIS Web Gateway port
     environment:
-      - IRIS_PASSWORD=password
+      - IRIS_PASSWORD=SYS
     healthcheck:
       test: ["CMD", "iris", "session", "iris", "-U%SYS", "w ##class(%SYSTEM.Util).GetEncode()"]
       interval: 10s
@@ -22,6 +23,7 @@ services:
     volumes:
       - iris_data:/usr/irissys/mgr/
       - iris_bindings:/usr/irissys/mgr/python/
+      - ./test_data/epr_inbound:/tmp/epr_inbound
 
   mcp-server:
     build:
@@ -36,14 +38,16 @@ services:
       - IRIS_PORT=1972
       - IRIS_NAMESPACE=USER
       - IRIS_USERNAME=_SYSTEM
-      - IRIS_PASSWORD=password
+      - IRIS_PASSWORD=SYS
       - PYTHONUNBUFFERED=1
       - LOG_LEVEL=DEBUG
     ports:
       - "8881:8080"
     volumes:
+      - .:/app
       - ./src:/app/src
       - ./example.py:/app/example.py
+      - ./tests:/app/tests
       - iris_bindings:/usr/irissys/mgr/python/
     working_dir: /app
     command: sse --port 8080

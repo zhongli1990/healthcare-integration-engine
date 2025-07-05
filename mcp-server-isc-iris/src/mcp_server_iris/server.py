@@ -6,20 +6,30 @@ import mcp.types as types
 from irisnative._IRISNative import createConnection, createIris
 from mcp_server_iris.mcpserver import MCPServer, Context, logger
 from mcp_server_iris.interoperability import init as interoperability
+from mcp_server_iris.business_services import init as business_services_init
 
 logger.info("Starting InterSystems IRIS MCP Server")
 
 
 def get_db_config() -> dict:
     """Get database configuration with hardcoded values for testing."""
+    
     # Hardcoded connection parameters for testing
     config = {
         "hostname": "database",  # Docker service name
         "port": 1972,            # Default IRIS port
         "namespace": "USER",     # Default namespace
         "username": "_SYSTEM",   # Default admin user
-        "password": "password",  # Hardcoded password for testing
+        "password": "SYS",  # Hardcoded password for testing
     }
+
+    #config = {
+    #    "hostname": "DESKTOP-66IKM9H",  # Docker service name
+    #    "port": 51773,            # Default IRIS port
+    #    "namespace": "USER",     # Default namespace
+    #    "username": "_SYSTEM",   # Default admin user
+    #    "password": "SYS",  # Hardcoded password for testing
+    #}
     
     logger.debug(f"Using hardcoded IRIS connection: {config}")
     logger.debug(f"Full connection string: iris://{config['username']}:{config['password']}@{config['hostname']}:{config['port']}/{config['namespace']}")
@@ -82,6 +92,9 @@ server_name = "InterSystems IRIS MCP Server"
 server_version = version("mcp_server_iris")
 server = MCPServer(name=server_name, version=server_version, lifespan=server_lifespan)
 interoperability(server, logger)
+business_services_init(server, logger)
+from mcp_server_iris import sql
+sql.init(server, logger)
 
 # @server.list_resources()
 # async def list_resources() -> list[types.Resource]:
